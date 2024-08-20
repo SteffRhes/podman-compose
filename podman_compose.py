@@ -130,6 +130,7 @@ def strverscmp_lt(a, b):
     return a_ls < b_ls
 
 
+# __sresch__ hier kommt volume als str rein, und als dict zurück
 def parse_short_mount(mount_str, basedir):
     mount_a = mount_str.split(":")
     mount_opt_dict = {}
@@ -378,6 +379,7 @@ def transform(args, project_name, given_containers):
     return pods, containers
 
 
+# __sresch__ hier wurde volume schon definiert
 async def assert_volume(compose, mount_dict):
     """
     inspect volume to get directory
@@ -491,6 +493,7 @@ def container_to_ulimit_build_args(cnt, podman_args):
         ulimit_to_ulimit_args(build.get("ulimits", []), podman_args)
 
 
+# __sresch__ hier wurde volume schon definiert
 def mount_desc_to_volume_args(compose, mount_desc, srv_name, cnt_name):  # pylint: disable=unused-argument
     mount_type = mount_desc["type"]
     if mount_type not in ("bind", "volume"):
@@ -531,6 +534,7 @@ def mount_desc_to_volume_args(compose, mount_desc, srv_name, cnt_name):  # pylin
     return args
 
 
+# __sresch__ 1. , 3.
 def get_mnt_dict(compose, cnt, volume):
     srv_name = cnt["_service"]
     basedir = compose.dirname
@@ -539,6 +543,7 @@ def get_mnt_dict(compose, cnt, volume):
     return fix_mount_dict(compose, volume, srv_name)
 
 
+# __sresch__ 2. , 4.
 async def get_mount_args(compose, cnt, volume):
     volume = get_mnt_dict(compose, cnt, volume)
     srv_name = cnt["_service"]
@@ -1496,11 +1501,27 @@ def normalize_service(service, sub_dir=""):
         if key in service:
             if isinstance(service[key], str):
                 service[key] = shlex.split(service[key])
-    for key in ("env_file", "security_opt", "volumes"):
+    for key in ("env_file", "security_opt"):
         if key not in service:
             continue
         if isinstance(service[key], str):
+            # __sresch__ could this be a bug in case of volumes?
             service[key] = [service[key]]
+    if "volumes" in service:
+        volumes = service["volumes"]
+        if isinstance(volumes, str):
+            service["volumes"] = [service["volumes"]]
+        if is_list(volumes):
+            vol_list = []
+            for vol in volumes:
+                if isinstance(vol, str):
+                    if sub_dir and vol.startswith("./"):
+                        vol = vol[2:]
+                        vol_sub_path = os.path.join("./", sub_dir, vol).rstrip("/")
+                        vol_list.append(vol_sub_path)
+                    else:
+                        vol_list.append(vol)
+            service["volumes"] = vol_list
     if "security_opt" in service:
         sec_ls = service["security_opt"]
         for ix, item in enumerate(sec_ls):
@@ -1610,6 +1631,7 @@ def rec_merge(target, *sources):
     return ret
 
 
+# __sresch__ hier werden die extend services geladen
 def resolve_extends(services, service_names, environ):
     for name in service_names:
         service = services[name]
@@ -1629,6 +1651,7 @@ def resolve_extends(services, service_names, environ):
                 content = content["services"]
             subdirectory = os.path.dirname(filename)
             content = rec_subs(content, environ)
+            # __sresch__ hier wird das dictionary des child service vom child compose file geladen
             from_service = content.get(from_service_name, {}) or {}
             normalize_service(from_service, subdirectory)
         else:
@@ -1900,6 +1923,8 @@ class PodmanCompose:
             services = {}
             log.warning("WARNING: No services defined")
         # include services with no profile defined or the selected profiles
+        # __sresch__ hier wird zum ersten Mal ein volume geladen, aber nur das des parent services,
+        # nicht das des child service
         services = self._resolve_profiles(services, set(args.profile))
 
         # NOTE: maybe add "extends.service" to _deps at this stage
@@ -1988,6 +2013,7 @@ class PodmanCompose:
                 cnt["_project"] = project_name
                 given_containers.append(cnt)
                 volumes = cnt.get("volumes", None) or []
+                # __sresch__ hier werden volumes zum ersten mal aus dem compose file gelesen
                 for volume in volumes:
                     mnt_dict = get_mnt_dict(self, cnt, volume)
                     if (

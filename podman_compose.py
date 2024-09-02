@@ -1599,10 +1599,6 @@ def rec_merge_one(target, source):
         if key in ("command", "entrypoint"):
             target[key] = clone(value2)
             continue
-        if not isinstance(value2, type(value)):
-            value_type = type(value)
-            value2_type = type(value2)
-            raise ValueError(f"can't merge value of [{key}] of type {value_type} and {value2_type}")
         if is_list(value2):
             if key == "volumes":
                 # clean duplicate mount targets
@@ -1879,6 +1875,7 @@ class PodmanCompose:
             content = normalize(content)
             # log(filename, json.dumps(content, indent = 2))
             content = rec_subs(content, self.environ)
+            # __sresch__ this might be different to the other call where 'extends' is resolved
             rec_merge(compose, content)
             # If `include` is used, append included files to files
             include = compose.get("include", None)

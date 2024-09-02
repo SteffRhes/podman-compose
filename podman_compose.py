@@ -1515,9 +1515,10 @@ def normalize_service(service, sub_dir=""):
             vol_list = []
             for vol in volumes:
                 if isinstance(vol, str):
+                    vol = ":".join([v.rstrip("/") for v in vol.split(":")])
                     if sub_dir and vol.startswith("./"):
                         vol = vol[2:]
-                        vol_sub_path = os.path.join("./", sub_dir, vol).rstrip("/")
+                        vol_sub_path = os.path.join("./", sub_dir, vol)
                         vol_list.append(vol_sub_path)
                     else:
                         vol_list.append(vol)
